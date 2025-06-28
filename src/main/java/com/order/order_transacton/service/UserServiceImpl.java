@@ -2,11 +2,20 @@ package com.order.order_transacton.service;
 
 import com.order.order_transacton.dto.request.LoginRequest;
 import com.order.order_transacton.dto.request.UserRequest;
+import com.order.order_transacton.dto.response.AuthResponse;
 import com.order.order_transacton.entities.Credential;
+import com.order.order_transacton.entities.RefreshToken;
 import com.order.order_transacton.entities.User;
 import com.order.order_transacton.entities.enums.Role;
+import com.order.order_transacton.exception.DataAlreadyExist;
+import com.order.order_transacton.exception.DataNotFoundException;
+import com.order.order_transacton.exception.InvalidCredentialException;
+import com.order.order_transacton.messages.ExceptionMessages;
+import com.order.order_transacton.repository.CredentialRepository;
+import com.order.order_transacton.repository.RefreshTokenRepository;
 import com.order.order_transacton.repository.UserRepository;
 import com.order.order_transacton.security.JwtTokenService;
+import com.order.order_transacton.service.services.RefreshTokenService;
 import com.order.order_transacton.service.services.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,8 +42,18 @@ public class UserServiceImpl implements UserService {
 
     private final JwtTokenService tokenService;
 
+    private final RefreshTokenService refreshTokenService;
+
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    private final CredentialRepository credentialRepository;
+
     @Override
     public User register(UserRequest userRequest) {
+        userRepository.findByEmail(userRequest.getEmail())
+                .ifPresent(e -> {
+                    throw new DataAlreadyExist(ExceptionMessages.USER_ALREADY_EXIST);
+                });
         User user = new User();
         user.setUserName(userRequest.getUserName());
         user.setEmail(userRequest.getEmail());
@@ -55,12 +74,23 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public String login(LoginRequest loginRequest) {
+    public AuthResponse login(LoginRequest loginRequest) {
         Authentication authenticate = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(),
                 loginRequest.getPassword(),
                 List.of(new SimpleGrantedAuthority(Role.getByrole(loginRequest.getRole()).getRole()))));
-        if (authenticate.isAuthenticated()) return tokenService.getToken(loginRequest);
-        throw new RuntimeException("Invalid credentials.");
+        if (authenticate.isAuthenticated()) {
+            Credential credential = credentialRepository.findByEmail(loginRequest.getEmail())
+                    .orElseThrow(() -> new DataNotFoundException(ExceptionMessages.USER_NOT_FOUND));
+            refreshTokenRepository.findByCredential(credential).ifPresent(refreshTokenService::delete);
+            String token = tokenService.getToken(loginRequest.getEmail(), loginRequest.getRole());
+
+            return AuthResponse
+                    .builder()
+                    .accessToken(token)
+                    .token(refreshTokenService.createToken(loginRequest.getEmail()).getToken())
+                    .build();
+        }
+        throw new InvalidCredentialException(ExceptionMessages.INVALID_USERNAME_OR_PASSWORD);
     }
 
     @Override

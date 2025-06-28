@@ -4,6 +4,9 @@ import com.order.order_transacton.dto.request.OrderRequest;
 import com.order.order_transacton.entities.Order;
 import com.order.order_transacton.entities.Product;
 import com.order.order_transacton.entities.User;
+import com.order.order_transacton.exception.DataNotFoundException;
+import com.order.order_transacton.exception.InsufficientStockException;
+import com.order.order_transacton.messages.ExceptionMessages;
 import com.order.order_transacton.repository.OrderRepository;
 import com.order.order_transacton.repository.ProductRepository;
 import com.order.order_transacton.repository.UserRepository;
@@ -29,15 +32,15 @@ public class OrderServiceImpl implements OrderService {
     public Order createOrder(OrderRequest orderRequest) {
         // validate the user
         User user = userRepository.findById(orderRequest.getUserId())
-                .orElseThrow(() -> new RuntimeException("Invalid user Id"));
+                .orElseThrow(() -> new DataNotFoundException(ExceptionMessages.USER_NOT_FOUND));
 
         // validate the product
         Product product = productRepository.findById(orderRequest.getProductId())
-                .orElseThrow(() -> new RuntimeException("Invalid user Id"));
+                .orElseThrow(() -> new DataNotFoundException(ExceptionMessages.PRODUCT_NOT_FOUND));
 
         // validate the qty
         if (orderRequest.getOrderQty() > product.getQty())
-            throw new RuntimeException("Stock is unavailable.");
+            throw new InsufficientStockException(ExceptionMessages.INSUFFICIENT_STOCK);
 
         // calculate the total price and set in order and set user and product in order.
         Order order = new Order();
