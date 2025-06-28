@@ -22,7 +22,10 @@ public class RefreshToken {
 
     private String token;
 
-    @Column(name = "exp_date")
+    @Column(nullable = false, name = "issue_at")
+    private Instant issuedAt;
+
+    @Column(nullable = false, name = "exp_date")
     private Instant expiryData;
 
     @OneToOne

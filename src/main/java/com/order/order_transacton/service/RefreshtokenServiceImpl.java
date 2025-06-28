@@ -30,6 +30,7 @@ public class RefreshtokenServiceImpl implements RefreshTokenService {
                 .credential(credentialRepository.findByEmail(userName)
                         .orElseThrow(() -> new DataNotFoundException(ExceptionMessages.USER_NOT_FOUND)))
                 .token(UUID.randomUUID().toString())
+                .issuedAt(Instant.now())
                 .expiryData(Instant.now().plusSeconds(3600))
                 .build();
         return refreshTokenRepository.save(refreshToken);
