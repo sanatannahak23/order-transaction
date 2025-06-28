@@ -20,10 +20,10 @@ public class JwtTokenService {
     @Value("${security.secret.key}")
     private String SECRET_KEY;
 
-    public String getToken(LoginRequest loginRequest) {
+    public String getToken(String email, String role) {
         Map<String, Object> map = new HashMap<>();
-        map.put("role", Role.getByrole(loginRequest.getRole()).getRole());
-        return generateToken(map, loginRequest.getEmail());
+        map.put("role", Role.getByrole(role).getRole());
+        return generateToken(map, email);
     }
 
     private String generateToken(Map<String, Object> map, String email) {
@@ -34,7 +34,7 @@ public class JwtTokenService {
                 .header().empty().add("typ", "JWT")
                 .and()
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 30))
+                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 15))
                 .signWith(getSignKey())
                 .compact();
     }
